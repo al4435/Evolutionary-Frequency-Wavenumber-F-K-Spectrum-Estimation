@@ -139,8 +139,19 @@ is stored as `/mu`.
 package writes `Phi[x, y, t, kx, ky, w]` C-ordered. Both keep one local
 spectrum contiguous.
 
-Verified against the MATLAB run: `/sigma2` agrees over all 327,500 centres to
-float64 round-off (max relative error 5.8e-14).
+**Verified against the MATLAB run** (50×50×131 field, window 15×15×23):
+
+| quantity | agreement |
+|---|---|
+| `/sigma2`, all 327,500 centres | float64 round-off, max rel. err 5.8e-14 |
+| `/Phi`, interior centres | **bit for bit** |
+| `/Phi`, boundary centres | intentionally differs — this is the Hermitian fix above |
+| DPSS tapers vs MATLAB `dpss` | 2e-16 |
+
+Interior parity is exact only because the adaptive iteration is seeded from
+the two most *concentrated* eigenspectra rather than the first two in array
+order. Seeding off an arbitrary neighbour still converges, but leaves a ~1e-4
+residue after five iterations — worth knowing if you re-implement this.
 
 ## Reference
 

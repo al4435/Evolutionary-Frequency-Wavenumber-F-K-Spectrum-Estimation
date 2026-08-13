@@ -67,8 +67,14 @@ def local_spectrum(block, H, lam, shape_common, n_iter=5):
     # eigenspectra for every taper at once -- one batched 3-D FFT
     Sk = np.abs(np.fft.fftn(b * H, axes=(-3, -2, -1))) ** 2
 
-    # adaptive weighting, vectorised over the taper axis
-    S = 0.5 * (Sk[0] + Sk[1 if Sk.shape[0] > 1 else 0])
+    # Seed from the two most concentrated eigenspectra -- Thomson's two
+    # lowest-order tapers.  Picking them by lambda rather than by position
+    # keeps the result independent of how the separable tapers happen to be
+    # flattened; seeding off an arbitrary neighbour instead leaves a ~1e-4
+    # residue after five iterations.
+    top = np.argsort(lam)[-2:] if lam.size > 1 else [0, 0]
+    S = 0.5 * (Sk[top[0]] + Sk[top[1]])
+
     lam_ = lam[:, None, None, None]
     root = np.sqrt(lam_)
     for _ in range(n_iter):
