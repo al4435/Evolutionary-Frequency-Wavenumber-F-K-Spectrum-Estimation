@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fkspec"
+version = "0.1.0"
+description = "Evolutionary F-K spectrum estimation for non-homogeneous, non-stationary fields"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.22",
+    "scipy>=1.9",
+    "h5py>=3.6",
+    "matplotlib>=3.5",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[tool.setuptools]
+packages = ["fkspec"]
