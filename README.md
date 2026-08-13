@@ -7,9 +7,7 @@ $$\Phi(k_x, k_y, \omega;\; x, y, t)$$
 at **every point** of a real field $R(x,y,t)$, using Thomson's adaptive
 multitaper method on a sliding 3-D window.
 
-The point is to handle fields that are neither homogeneous nor stationary — a
-storm that intensifies in time and is patchy in space — where a single global
-spectrum would average away exactly the structure you care about.
+The point is to handle fields that are neither homogeneous nor stationary.
 
 ```python
 from fkspec import Config, Results, estimate, load_field
@@ -114,33 +112,7 @@ identity (interior *and* truncated blocks), taper normalisation, fixed
 normalised bandwidth, white-noise flatness, that a plane wave lands on the bin
 that generated it, and that parallel and serial runs agree bit for bit.
 
-## Implementation notes
 
-Three details are easy to get wrong and are worth stating explicitly, because
-each one silently corrupts results rather than raising an error.
-
-**Even-length axes break Hermitian symmetry.** An even-length axis folds its
-Nyquist bin onto $-1/2$ with no $+1/2$ partner, so the normalised-frequency
-grid is asymmetric about zero. Resampling such an axis with plain zero-fill
-extrapolation pads one side and not the other; the resampled spectrum stops
-being Hermitian, and the variance identity fails — by **~10%** when the even
-axis is time. Boundary blocks hit even lengths constantly, so this is the
-common case, not an edge case. `_wrap_pad` extends each axis periodically
-instead, which is what the DFT actually does: no edge power is fabricated or
-lost, and the identity holds to ~1e-9 (float32 storage precision) at every
-centre, boundaries included.
-
-**Seed the adaptive iteration by concentration, not by position.** The
-separable 3-D tapers are flattened into one array, and seeding the iteration
-from the first two entries makes the result depend on the flattening order.
-Selecting the two most concentrated eigenspectra instead — Thomson's two
-lowest-order tapers — is order-independent. Seeding off an arbitrary
-neighbour still converges, but leaves a ~1e-4 residue after five iterations.
-
-**Radial bins must reach the corner radius.** Binning $|k|$ only out to the
-axis maximum silently discards power in the corners of the wavenumber grid,
-where $|k|$ reaches $\sqrt2$ times the axis maximum. `radial_bins` uses the
-corner radius.
 
 ## Reference
 
