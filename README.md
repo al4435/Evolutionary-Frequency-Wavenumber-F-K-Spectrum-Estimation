@@ -14,7 +14,7 @@ spectrum would average away exactly the structure you care about.
 ```python
 from fkspec import Config, Results, estimate, load_field
 
-R = load_field("R_field.mat")                       # (x, y, t)
+R = load_field("field.npy")                         # (x, y, t)
 estimate(R, "Phi.h5", Config(window=(15, 15, 23), spacing=(1.0, 1.0, 5/60)))
 
 with Results("Phi.h5") as res:
@@ -33,7 +33,7 @@ Requires Python ≥3.10, numpy, scipy, h5py, matplotlib.
 ## Run the worked example
 
 ```bash
-python examples/run_gard2002.py path/to/R_field.mat --out results/
+python examples/run_gard2002.py path/to/field.npy --out results/
 ```
 
 Produces the full figure set and a variance animation. About 8 minutes for a
@@ -65,7 +65,7 @@ the eigenspectra and the leakage floor share one scale with no fudge factor.
 **Common grid.** Boundary blocks produce spectra on a coarser frequency grid,
 so they are resampled onto the interior grid in normalised frequency. The
 resampling uses the DFT's periodicity to wrap at the edges rather than
-zero-filling — see [Differences from the MATLAB original](#differences-from-the-matlab-original).
+zero-filling — see [Implementation notes](#implementation-notes).
 
 **Variance normalisation.** Each spectrum is scaled so that, on the full
 two-sided grid, $\mathrm{mean}(\Phi) = \sigma^2$ exactly at every centre. The
@@ -114,44 +114,33 @@ identity (interior *and* truncated blocks), taper normalisation, fixed
 normalised bandwidth, white-noise flatness, that a plane wave lands on the bin
 that generated it, and that parallel and serial runs agree bit for bit.
 
-`tests/parity_matlab.py` is a separate local script for comparing against the
-original MATLAB output.
+## Implementation notes
 
-## Differences from the MATLAB original
+Three details are easy to get wrong and are worth stating explicitly, because
+each one silently corrupts results rather than raising an error.
 
-**Fixed: Hermitian symmetry on even-length blocks.** An even-length axis folds
-its Nyquist bin onto $-1/2$ with no $+1/2$ partner, so the grid is asymmetric
-about zero. The MATLAB version zero-filled the missing side, which cost the
-resampled spectrum its Hermitian symmetry and broke the variance identity by
-**~10%** when the even axis was time. Real boundary blocks hit even lengths
-constantly. `_wrap_pad` extends each axis periodically instead, which restores
-symmetry and removes the zero-fill, so no edge power is fabricated or lost.
-The identity now holds to ~1e-9 (float32 storage precision) at every centre.
+**Even-length axes break Hermitian symmetry.** An even-length axis folds its
+Nyquist bin onto $-1/2$ with no $+1/2$ partner, so the normalised-frequency
+grid is asymmetric about zero. Resampling such an axis with plain zero-fill
+extrapolation pads one side and not the other; the resampled spectrum stops
+being Hermitian, and the variance identity fails — by **~10%** when the even
+axis is time. Boundary blocks hit even lengths constantly, so this is the
+common case, not an edge case. `_wrap_pad` extends each axis periodically
+instead, which is what the DFT actually does: no edge power is fabricated or
+lost, and the identity holds to ~1e-9 (float32 storage precision) at every
+centre, boundaries included.
 
-**Fixed: radial bins reached only the axis maximum**, dropping power in the
-corners of the wavenumber grid. `radial_bins` now reaches the corner radius.
+**Seed the adaptive iteration by concentration, not by position.** The
+separable 3-D tapers are flattened into one array, and seeding the iteration
+from the first two entries makes the result depend on the flattening order.
+Selecting the two most concentrated eigenspectra instead — Thomson's two
+lowest-order tapers — is order-independent. Seeding off an arbitrary
+neighbour still converges, but leaves a ~1e-4 residue after five iterations.
 
-**Merged:** the MATLAB pipeline recomputed local means in a second pass over
-every window. The estimator already has that number, so it returns it and it
-is stored as `/mu`.
-
-**Array order:** MATLAB wrote `Phi[kx, ky, w, x, y, t]` column-major; this
-package writes `Phi[x, y, t, kx, ky, w]` C-ordered. Both keep one local
-spectrum contiguous.
-
-**Verified against the MATLAB run** (50×50×131 field, window 15×15×23):
-
-| quantity | agreement |
-|---|---|
-| `/sigma2`, all 327,500 centres | float64 round-off, max rel. err 5.8e-14 |
-| `/Phi`, interior centres | **bit for bit** |
-| `/Phi`, boundary centres | intentionally differs — this is the Hermitian fix above |
-| DPSS tapers vs MATLAB `dpss` | 2e-16 |
-
-Interior parity is exact only because the adaptive iteration is seeded from
-the two most *concentrated* eigenspectra rather than the first two in array
-order. Seeding off an arbitrary neighbour still converges, but leaves a ~1e-4
-residue after five iterations — worth knowing if you re-implement this.
+**Radial bins must reach the corner radius.** Binning $|k|$ only out to the
+axis maximum silently discards power in the corners of the wavenumber grid,
+where $|k|$ reaches $\sqrt2$ times the axis maximum. `radial_bins` uses the
+corner radius.
 
 ## Reference
 

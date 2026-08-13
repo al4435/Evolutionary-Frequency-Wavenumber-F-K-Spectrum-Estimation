@@ -5,6 +5,8 @@ rad/hr instead of indices, and never have to remember which axes need an
 ``fftshift``.
 """
 
+from pathlib import Path
+
 import h5py
 import numpy as np
 
@@ -109,14 +111,35 @@ class Results:
 
 
 def load_field(path, name="R"):
-    """Load a real field from a ``.mat`` file, either MAT <=v7 or v7.3.
+    """Load a real ``(x, y, t)`` field.
 
-    Returns an ``(x, y, t)`` array.
+    Handles ``.npy``, ``.npz``, ``.h5``/``.hdf5`` and ``.mat``.  For the
+    container formats, ``name`` selects the array; if it is absent the first
+    array in the file is used.
     """
-    try:
-        with h5py.File(path, "r") as f:  # v7.3 is HDF5, and stores transposed
-            return np.array(f[name]).T
-    except OSError:
-        from scipy.io import loadmat
+    path = Path(path)
+    suffix = path.suffix.lower()
 
-        return np.ascontiguousarray(loadmat(path)[name])
+    if suffix == ".npy":
+        return np.ascontiguousarray(np.load(path))
+
+    if suffix == ".npz":
+        with np.load(path) as z:
+            return np.ascontiguousarray(z[name if name in z else list(z)[0]])
+
+    if suffix in {".h5", ".hdf5"}:
+        with h5py.File(path, "r") as f:
+            return np.ascontiguousarray(np.array(f[name if name in f else list(f)[0]]))
+
+    if suffix == ".mat":
+        try:
+            with h5py.File(path, "r") as f:  # v7.3 is HDF5, stored transposed
+                return np.ascontiguousarray(
+                    np.array(f[name if name in f else list(f)[0]]).T
+                )
+        except OSError:  # older MAT revisions are not HDF5
+            from scipy.io import loadmat
+
+            return np.ascontiguousarray(loadmat(path)[name])
+
+    raise ValueError(f"unsupported field format {suffix!r}: {path}")

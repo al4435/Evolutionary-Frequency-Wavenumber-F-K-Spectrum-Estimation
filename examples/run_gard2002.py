@@ -3,7 +3,7 @@
 Estimates the evolutionary F-K spectrum of a 50 x 50 x 131 field (1 km grid,
 5 min steps), then writes the full figure set and the variance animation.
 
-    python examples/run_gard2002.py path/to/R_field.mat --out results/
+    python examples/run_gard2002.py path/to/field.npy --out results/
 
 Roughly 8 minutes on 10 cores; pass ``--workers 1`` to run serially.
 """
@@ -22,8 +22,10 @@ from fkspec import plots
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("field", type=Path, help=".mat file holding the field")
-    ap.add_argument("--name", default="R", help="variable name inside the .mat")
+    ap.add_argument("field", type=Path,
+                    help="field file (.npy, .npz, .h5 or .mat)")
+    ap.add_argument("--name", default="R",
+                    help="array name, for formats holding more than one")
     ap.add_argument("--out", type=Path, default=Path("results"))
     ap.add_argument("--workers", type=int, default=None)
     ap.add_argument("--window", type=int, nargs=3, default=(15, 15, 23),

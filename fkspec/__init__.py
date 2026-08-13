@@ -8,7 +8,7 @@ Typical use::
 
     from fkspec import Config, estimate, Results, load_field
 
-    R = load_field("R_field.mat")
+    R = load_field("field.npy")
     estimate(R, "Phi.h5", Config(window=(15, 15, 23), spacing=(1.0, 1.0, 5/60)))
 
     with Results("Phi.h5") as res:
